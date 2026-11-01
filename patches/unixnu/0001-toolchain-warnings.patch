@@ -1,0 +1,39 @@
+diff --git a/scripts/build-pagani-verified-root-probe.py b/scripts/build-pagani-verified-root-probe.py
+index b7d879a..6140daf 100644
+--- a/scripts/build-pagani-verified-root-probe.py
++++ b/scripts/build-pagani-verified-root-probe.py
+@@ -136,7 +136,7 @@ for source in (ROOT / 'kits/PaganiVerifiedRoot/src/verified_root.c', ROOT / 'kit
+         elif value not in ('-MD', '-MP'):
+             command.append(value)
+         index += 1
+-    command += ['-I' + str(ROOT / 'kits/PaganiVerifiedRoot/include'), '-Werror', '-Wno-error=missing-include-dirs']
++    command += ['-I' + str(ROOT / 'kits/PaganiVerifiedRoot/include'), '-Werror', '-Wno-error=missing-include-dirs', '-Wno-error=unsafe-buffer-usage', '-Wno-error=unnecessary-virtual-specifier', '-Wno-error=shadow-header']
+     result = subprocess.run(command, cwd=record['directory'], capture_output=True, text=True)
+     (out / (source.stem + '.log')).write_text(result.stdout + result.stderr)
+     if result.returncode:
+diff --git a/scripts/build-sheng-platform-power.py b/scripts/build-sheng-platform-power.py
+index 78fa559..d34f013 100644
+--- a/scripts/build-sheng-platform-power.py
++++ b/scripts/build-sheng-platform-power.py
+@@ -68,7 +68,7 @@ while i < len(arguments):
+         command.append(arg)
+     i += 1
+ command += ['-mgeneral-regs-only', '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-Wno-c99-designator',
+-            '-Wno-reorder-init-list', '-Wno-deprecated-enum-enum-conversion',
++            '-Wno-reorder-init-list', '-Wno-deprecated-enum-enum-conversion', '-Wno-unnecessary-virtual-specifier',
+             '-I', OUT, '-I', ROOT / '.cache/xnu-work/osfmk']
+ run(command, cwd=record['directory'])
+ raw = obj.read_bytes()
+diff --git a/scripts/build-ufs-storage-bindings.py b/scripts/build-ufs-storage-bindings.py
+index 8392a0b..b824d3e 100644
+--- a/scripts/build-ufs-storage-bindings.py
++++ b/scripts/build-ufs-storage-bindings.py
+@@ -80,7 +80,7 @@ while index < len(arguments):
+ command += ['-I', str(ROOT / 'build/storage-abi/include'), '-I', str(ROOT / '.cache/xnu-work/osfmk'),
+             '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-Wno-deprecated-declarations',
+             '-Wno-c99-designator', '-Wno-reorder-init-list',
+-            '-Wno-deprecated-enum-enum-conversion']
++            '-Wno-deprecated-enum-enum-conversion', '-Wno-unnecessary-virtual-specifier']
+ result = subprocess.run(command, cwd=recipe['directory'], capture_output=True, text=True)
+ (reference.with_suffix('.log')).write_text(result.stdout + result.stderr)
+ require(result.returncode == 0, (result.stdout + result.stderr)[-3500:])

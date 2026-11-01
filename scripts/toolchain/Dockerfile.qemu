@@ -1,0 +1,13 @@
+FROM unixnu-toolchain:v1
+# QEMU + UEFI firmware for the ABI probes that boot the built kernel once
+# (build-storage-abi.py, build-display-abi.py -> scripts/qemu-entry/gdb-stop.py).
+# gdb-stop.py looks for share/qemu/edk2-aarch64-code.fd next to the qemu binary;
+# Ubuntu ships the same firmware as AAVMF, so link it there.
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      qemu-system-arm qemu-efi-aarch64 \
+ && ln -sf /usr/share/AAVMF/AAVMF_CODE.fd /usr/share/qemu/edk2-aarch64-code.fd \
+ && ln -sf /usr/share/AAVMF/AAVMF_VARS.fd /usr/share/qemu/edk2-arm-vars.fd \
+ && ln -sf /usr/bin/llvm-dwarfdump /usr/local/bin/dwarfdump \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /work

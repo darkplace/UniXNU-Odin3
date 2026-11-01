@@ -1,0 +1,225 @@
+--- a/osfmk/kern/boot_progress.h
++++ b/osfmk/kern/boot_progress.h
+@@ -16,6 +16,14 @@
+ void boot_progress_critical_exit(int, char *, unsigned long);
+ void boot_progress_process_stage(int, const char *, const char *);
+ void boot_progress_exit(int, const char *, int, unsigned, uint64_t);
++void odin_boot_svc(int, uint64_t, int, uint64_t);
++void odin_boot_svc_return(uint64_t, uint64_t, unsigned);
++void odin_boot_fault(int, const char *, unsigned, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
++void odin_boot_log(char);
++void odin_boot_userlog(unsigned, const char *, unsigned);
++void odin_boot_shadow(int, const char *);
++void odin_boot_main(unsigned);
++void odin_boot_snapshot(unsigned *, unsigned *);
+ #else
+ #define boot_progress_init() ((void)0)
+ #define boot_progress_start() ((void)0)
+@@ -30,5 +38,12 @@
+ #define boot_progress_critical_exit(...) ((void)0)
+ #define boot_progress_process_stage(...) ((void)0)
+ #define boot_progress_exit(...) ((void)0)
++#define odin_boot_svc(...) ((void)0)
++#define odin_boot_svc_return(...) ((void)0)
++#define odin_boot_fault(...) ((void)0)
++#define odin_boot_log(...) ((void)0)
++#define odin_boot_userlog(...) ((void)0)
++#define odin_boot_shadow(...) ((void)0)
++#define odin_boot_main(...) ((void)0)
+ #endif
+ #endif
+--- a/bsd/kern/kern_exit.c
++++ b/bsd/kern/kern_exit.c
+@@ -1342,7 +1342,11 @@
+ 		// Can only ever be set by launchd, and only once at boot
+ 		return EPERM;
+ 	}
+-	return sysctl_handle_int(oidp, &initproc_spawned, 0, req);
++	int error = sysctl_handle_int(oidp, &initproc_spawned, 0, req);
++	if (!error && req->newptr != 0 && initproc_spawned) {
++		odin_boot_main((unsigned)initproc_spawned);
++	}
++	return error;
+ }
+ 
+ SYSCTL_PROC(_kern, OID_AUTO, initproc_spawned,
+@@ -1898,9 +1902,18 @@
+ 	task_t task = proc_task(p);
+ 
+ 
+-	boot_progress_exit(proc_getpid(p),p->p_name,rv,
+-	    p->p_exit_reason ? p->p_exit_reason->osr_namespace : 0,
+-	    p->p_exit_reason ? p->p_exit_reason->osr_code : 0);
++	/* exec retires a shadow proc with the SAME pid/name as the old image.
++	 * This is not the death of the replacement now installed in the pid hash.
++	 * Keep the original critical-exit policy below completely unchanged. */
++	if (os_atomic_load(&p->p_refcount, relaxed) & P_REF_SHADOW) {
++		odin_boot_shadow(proc_getpid(p), p->p_name);
++	} else {
++		if (p == initproc)
++			boot_progress_process_stage(proc_getpid(p), p->p_name, "LIVE initproc exit: critical policy");
++		boot_progress_exit(proc_getpid(p),p->p_name,rv,
++		    p->p_exit_reason ? p->p_exit_reason->osr_namespace : 0,
++		    p->p_exit_reason ? p->p_exit_reason->osr_code : 0);
++	}
+ 
+ 	if (p->p_crash_behavior != 0 || p == initproc) {
+ 		proc_handle_critical_exit(p, rv);
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -5064,4 +5064,5 @@
+ 		proc_list_unlock();
++		boot_progress_process_stage(proc_getpid(new_proc), new_proc->p_name, "exec pid-hash switch complete");
+ #if CONFIG_EXCLAVES
+ 		if (task_inherit_conclave(old_task, new_task, imgp->ip_vp,
+ 		    (int64_t)imgp->ip_arch_offset) != KERN_SUCCESS) {
+@@ -8190,5 +8191,32 @@
+  * 4		3		1		/sbin/launchd
+  */
++#if defined(XNU_BOOT_PROGRESS) && XNU_BOOT_PROGRESS
++/* Read-only, once per observer tick. The list lock protects list membership;
++ * names are a transient diagnostic sample, not a task or thread reference. */
++void
++odin_boot_snapshot(unsigned *count, unsigned *mask)
++{
++	static const char *const names[] = {
++		"launchd", "logd", "backboardd", "SpringBoard",
++		"runningboardd", "watchdogd", "UserEventAgent"
++	};
++	proc_t process;
++	unsigned n = 0, bits = 0;
++	proc_list_lock();
++	ALLPROC_FOREACH(process) {
++		++n;
++		for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
++			if (!strncmp(process->p_name, names[i], sizeof(process->p_name))) {
++				bits |= 1U << i;
++			}
++		}
++	}
++	proc_list_unlock();
++	*count = n;
++	*mask = bits;
++}
++#endif
++
+ void
+ load_init_program(proc_t p)
+ {
+--- a/osfmk/arm64/sleh.c
++++ b/osfmk/arm64/sleh.c
+@@ -1679,4 +1679,18 @@
+-	boot_progress_user_abort(state, esr, fault_addr);
++	{
++		/* Which file the PC lies in: the map entry's start and its pager offset (the file offset for a vnode-backed image). */
++		uint64_t odin_start = 0, odin_offset = 0;
++		vm_map_t odin_map = thread->map;
++		vm_map_entry_t odin_entry;
++		vm_map_lock_read(odin_map);
++		if (vm_map_lookup_entry(odin_map, get_saved_state_pc(state), &odin_entry)) {
++			odin_start = odin_entry->vme_start;
++			odin_offset = VME_OFFSET(odin_entry);
++		}
++		vm_map_unlock_read(odin_map);
++		odin_boot_fault(proc_pid(get_bsdthreadtask_info(current_thread())), proc_best_name(current_proc()), esr,
++		    get_saved_state_pc(state), get_saved_state_lr(state), fault_addr, odin_start, odin_offset);
++	}
++	boot_progress_user_abort(state, esr, fault_addr);
+ 	if (user_fault_in_self_restrict_mode(thread) &&
+ 	    task_is_jit_exception_fatal(get_threadtask(thread))) {
+ 		extern int exit_with_jit_exception(proc_t p);
+@@ -1903,6 +1904,8 @@
+ 	thread_t thread  = current_thread();
+ 	struct   proc *p;
+ 
++	odin_boot_svc(proc_pid(get_bsdthreadtask_info(thread)), thread_tid(thread), trap_no, get_saved_state_pc(state));
++
+ #define handle_svc_kprintf(x...) /* kprintf("handle_svc: " x) */
+ 
+ #define TRACE_SYSCALL 1
+@@ -1918,9 +1921,11 @@
+ 	if (trap_no < 0) {
+ 		switch (trap_no) {
+ 		case MACH_ARM_TRAP_ABSTIME:
+ 			handle_mach_absolute_time_trap(state);
++			odin_boot_svc_return(thread_tid(thread), get_saved_state_reg(state, 0), get_saved_state_cpsr(state));
+ 			return;
+ 		case MACH_ARM_TRAP_CONTTIME:
+ 			handle_mach_continuous_time_trap(state);
++			odin_boot_svc_return(thread_tid(thread), get_saved_state_reg(state, 0), get_saved_state_cpsr(state));
+ 			return;
+ 		}
+@@ -1941,6 +1946,7 @@
+ 
+ 		unix_syscall(state, thread, p);
+ 	}
++	odin_boot_svc_return(thread_tid(thread), get_saved_state_reg(state, 0), get_saved_state_cpsr(state));
+ }
+ 
+ static void
+@@ -2300,6 +2306,7 @@
+ 	assert(is_saved_state64(state));
+ 	saved_state64(state)->x[0] = error;
+ 
++	odin_boot_svc_return(thread_tid(thread), error, get_saved_state_cpsr(state));
+ #if MACH_ASSERT
+ 	kern_allocation_name_t
+ 	prior __assert_only = thread_get_kernel_state(thread)->allocation_name;
+--- a/bsd/dev/arm/systemcalls.c
++++ b/bsd/dev/arm/systemcalls.c
+@@ -1,2 +1,3 @@
++#include <kern/boot_progress.h>
+ /*
+  * Copyright (c) 2000-2022 Apple Inc. All rights reserved.
+@@ -273,4 +274,5 @@
+ 	arm_prepare_syscall_return(callp, regs, uthread, error);
+ 
++	odin_boot_svc_return(thread_tid(thread_act), get_saved_state_reg(regs, 0), get_saved_state_cpsr(regs));
+ 	uthread->uu_flag &= ~UT_NOTCANCELPT;
+ 	uthread->syscall_code = 0;
+--- a/osfmk/kern/printf.c
++++ b/osfmk/kern/printf.c
+@@ -921,4 +921,5 @@
+ 	debug_putc(c);
+ 
++	odin_boot_log(c);
+ 	if (!console_is_serial() && !disable_serial_output && !boot_progress_active()) {
+ 		PE_kputc(c);
+@@ -933,4 +934,5 @@
+ 	debug_putc(c);
+ 
++	odin_boot_log(c);
+ 	if (!console_is_serial() && !disable_serial_output && !boot_progress_active()) {
+ 		PE_kputc(c);
+--- a/bsd/kern/sys_generic.c
++++ b/bsd/kern/sys_generic.c
+@@ -1,2 +1,3 @@
++#include <kern/boot_progress.h>
+ /*
+  * Copyright (c) 2000-2021 Apple Inc. All rights reserved.
+@@ -666,6 +667,25 @@
+ 	context = *(vfs_context_current());
+ 	context.vc_ucred = fp->fp_glob->fg_cred;
+ 
++#if defined(XNU_BOOT_PROGRESS) && XNU_BOOT_PROGRESS
++	/* Bounded diagnostic copy of pid 1 stdout/stderr write requests only.
++	 * This does not modify the uio, the file, or the syscall result. The
++	 * bytes are a requested write, not proof the destination accepted it. */
++	if (proc_getpid(p) == 1 && (fd == 1 || fd == 2)) {
++		char text[128];
++		unsigned budget = 256;
++		for (int i = 0; i < uio_iovcnt(uio) && i < 4 && budget; ++i) {
++			user_addr_t address;
++			user_size_t length;
++			if (uio_getiov(uio, i, &address, &length)) break;
++			unsigned n = (unsigned)MIN(length, (user_size_t)MIN(sizeof(text), budget));
++			if (n && !copyin(address, text, n)) {
++				odin_boot_userlog((unsigned)fd, text, n);
++			}
++			budget -= n;
++		}
++	}
++#endif
+ 	error = fp_writev(&context, fp, uio, flags, retval);
+ 
+ 	fp_drop(p, fd, fp, 0);

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Use exactly the existing read-only host LLVM bridge, not LLVM 18 in the image.
+exec "$(dirname "$0")/../../llvm-objcopy" "$@"

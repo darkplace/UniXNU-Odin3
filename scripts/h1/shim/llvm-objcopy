@@ -1,0 +1,4 @@
+#!/bin/sh
+# El llvm-objcopy 18 de la imagen no soporta --globalize-symbol en Mach-O (el del host, LLVM 23, si).
+# Se ejecuta el del host con su propio cargador y sus propias librerias, montados en /hostusr (solo lectura).
+exec /hostusr/lib/ld-linux-x86-64.so.2 --library-path /hostusr/lib /hostusr/bin/llvm-objcopy "$@"

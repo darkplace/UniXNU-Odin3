@@ -1,0 +1,9 @@
+#!/bin/sh
+# No Homebrew installation. The pinned macOS display recipes only ask for
+# `brew --prefix llvm` to locate a Mach-O-capable llvm-objcopy.
+if [ "$#" -eq 2 ] && [ "$1" = --prefix ] && [ "$2" = llvm ]; then
+    realpath "$(dirname "$0")/llvm-prefix"
+else
+    echo 'brew shim: only --prefix llvm is supported' >&2
+    exit 1
+fi

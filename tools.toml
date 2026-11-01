@@ -1,0 +1,25 @@
+# Auxiliary repositories this board builds with. scripts/h1/check-host.sh verifies them, and
+# seal-medium.py records the toolchain image id and the patches, so a medium can name its inputs.
+
+[toolchain]
+# The container that carries the patched clang, cctools, mig, iig and lzfse.
+image = "unixnu-toolchain:v1"
+dockerfile = "scripts/toolchain/Dockerfile.toolchain"
+
+[tool]
+# The build tool. Its own recipes run from this checkout, so the commit matters.
+git = "https://github.com/UniXNU/UniXNU"
+commit_file = "upstream.rev"
+patches = "patches/unixnu"
+
+[firmware]
+# Needed by "unixnu build package": it builds UniXNU.efi, the loader OpenABL starts.
+git = "https://github.com/Project-Silicium/Mu-Silicium"
+commit = "4cba43c90e02"
+marker = "Resources/Scripts/mkbootimg.py"
+
+[macos]
+# Only for the two inputs that need hdiutil: the owner-signed policy manifests and the Data seed.
+git = "https://github.com/xVanTuring/UniXNU-qemu"
+commit = "97b75b1"
+purpose = "owner policy manifests; see docs/build.md, the macOS step"

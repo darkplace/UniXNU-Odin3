@@ -1,0 +1,14 @@
+--- a/pexpert/pexpert/arm64/BCM2837.h
++++ b/pexpert/pexpert/arm64/BCM2837.h
+@@ -21,6 +21,11 @@
+ #define __ARM_DEBUG__             7
+ #define __ARM64_PMAP_SUBPAGE_L1__ 1
+ 
++/* Odin 3 (SM8750): two Oryon clusters, tagged E/P in the device tree. XNU only
++ * defines CONFIG_SCHED_EDGE (sched.h) when __AMP__ is set, so the Edge policy
++ * would otherwise be compiled out even with MAX_CPU_CLUSTERS == 2. */
++#define __ARM_AMP__               1
++
+ /* Explicit native ARMv8.1+ bring-up; the original A53 target has no PAN. */
+ #if defined(XNU_NATIVE_PAN) && XNU_NATIVE_PAN
+ #define __ARM_PAN_AVAILABLE__      1

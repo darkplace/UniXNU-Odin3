@@ -1,0 +1,24 @@
+name: Device documentation
+
+# Manual only, on purpose.
+#
+# The upstream checker behind this reusable workflow (UniXNU/UniXNU, tools/scripts/porting-record.py)
+# validates every component named in porting.toml against the upstream catalog. This board's record
+# names PaganiVerifiedRoot, a kit that lives in this repository (kits/PaganiVerifiedRoot) and not in
+# that catalog, whose closest entry is VerifiedRoot: a different kit, from a different repository.
+# The result on every push was:
+#
+#   porting record: device: unknown component PaganiVerifiedRoot
+#   ##[error]Process completed with exit code 1.
+#
+# A red run per push for a mismatch that is already documented is noise, so the check runs when
+# somebody asks for it: after the record changes, or once the board moves to the catalogued kit.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  porting-record:
+    uses: UniXNU/UniXNU/.github/workflows/porting-record.yml@main

@@ -1,0 +1,31 @@
+diff --git a/scripts/unixnu/kernel.py b/scripts/unixnu/kernel.py
+index 6125cec..a9ec35c 100644
+--- a/scripts/unixnu/kernel.py
++++ b/scripts/unixnu/kernel.py
+@@ -150,6 +150,13 @@ def build_archives(ctx, env):
+             raise Error(f'{key}: {value} not found; supply the archive or its build recipe')
+ 
+ 
++def missing_objects(ctx):
++    """Recorded kernel objects (<name>.o.json / <name>.cpo.json) whose object file is absent."""
++    root = ctx.tree / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837'
++    return [path for path in root.rglob('*.json')
++            if path.name.endswith(('.o.json', '.cpo.json')) and not path.with_suffix('').exists()]
++
++
+ def build(ctx, modules):
+     log('kernel: XNU')
+     script = ctx.tree / 'scripts/build-xnu-4k-baseline.sh'
+@@ -173,7 +180,11 @@ def build(ctx, modules):
+         env['UNIXNU_GENERATED_DIR'] = str(generated)
+     env['JOBS'] = str(ctx.jobs)
+     record = ctx.tree / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/osfmk/DEVELOPMENT/startup.o.json'
+-    if not record.is_file():
++    if not record.is_file() or missing_objects(ctx):
++        # iDragon: build-xnu-4k-baseline.sh deletes the objects whose mode stamp changed (boot-progress, crypto,
++        # mockfs, cs-hash-cache) before it invokes make, and a pass that stops at its archive check leaves them
++        # deleted while their .o.json records remain. Rerun the bootstrap pass (no archive checks) until every
++        # recorded object exists, because the archive builders run nm over all of them.
+         # The archive builders and the boot progress layer read compile records of the XNU build, which only an earlier
+         # pass leaves behind. A first build from scratch therefore runs one pass without them; XNU_BOOTSTRAP makes it
+         # skip the archive checks and link without the archives, so it stops at the link and only the records are

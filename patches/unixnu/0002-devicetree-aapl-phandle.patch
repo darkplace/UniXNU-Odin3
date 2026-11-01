@@ -1,0 +1,15 @@
+diff --git a/scripts/unixnu/devicetree.py b/scripts/unixnu/devicetree.py
+index de51866..93c6667 100644
+--- a/scripts/unixnu/devicetree.py
++++ b/scripts/unixnu/devicetree.py
+@@ -217,6 +217,10 @@ def hardware_properties(entry, handles, base=0):
+             properties.append((key, raw))
+         elif key in U32:
+             properties.append((key, struct.pack('<I', entry.scalar(key))))
++            if key == 'phandle':
++                # XNU resolves interrupt-parent through "AAPL,phandle" (iokit/Kernel/IODeviceTreeSupport.cpp: gIODTPHandleKey);
++                # a plain "phandle" is invisible to FindPHandle and leaves the provider NULL (IODTGetICellCounts data abort).
++                properties.append(('AAPL,phandle', struct.pack('<I', entry.scalar(key))))
+         elif key in U64:
+             cells = entry.cells(key)
+             if len(cells) not in (1, 2):

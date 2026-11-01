@@ -1,0 +1,147 @@
+/dts-v1/;
+/include/ "sm8750.dtsi"
+
+/*
+ * AYN Odin 3 (Dragonwing Q8 / CQ8725S, SM8750), 16 GiB.
+ *
+ * Hardware values now come from a real source instead of the OnePlus 13T profile:
+ *   AYNTechnologies/linux, commit d0bd1239126dbd52b2bad91de1db0020de26977c (2026-04-15),
+ *   arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts and cq8725s-ayn-common.dtsi,
+ *   plus the SM8750 SoC nodes in the same tree's sm8750.dtsi.
+ * That tree is the vendor's Linux 7.0 branch: its Odin 3 device tree boots with working UFS, so the
+ * UFS host/PHY windows and the interrupt are observed facts, not guesses. The file is referenced, not
+ * copied into this repository.
+ *
+ * Reference values used here:
+ *   ufs_mem_hc  ufs@1d84000   reg 0x1d84000+0x3000  GIC SPI 265 (level high)  compatible qcom,sm8750-ufshc
+ *   ufs_mem_phy phy@1d80000   reg 0x1d80000+0x2000
+ *   board       reset-gpios <&tlmm 215 GPIO_ACTIVE_LOW>; vcc 2.5 V (L17B), vccq 1.2 V (L1D),
+ *               PHY vdda 0.91 V (L1J), PLL 1.2 V (L3G) — Linux regulator bindings, kept out of the ADT.
+ *
+ * Still not from a source, and marked as such:
+ *   - the 13 GiB DRAM window at 0x8C0000000: the vendor tree has no /memory node (the bootloader
+ *     supplies it), so this value keeps the measurement taken on this device in the session notes and
+ *     must be re-checked against the Odin's own memory map in H1.
+ *   - panel, touch, PMIC, USB and GPU nodes: they exist in the vendor tree and will be ported with their
+ *     bindings in D2/H; they are not invented here.
+ */
+
+/ {
+    model = "AYN Odin 3";
+    compatible = "ayn,odin3", "qcom,sm8750";
+
+    /*
+     * RAM real de la Odin, no una suposicion: el firmware instalado informa
+     *   openabl-menu: Total DDR Size: 0x00000003E9A5D000   (~15.65 GiB)
+     * sobre la base de memoria del SM8750 (0x80000000, PcdSystemMemoryBase del firmware).
+     * CORRECCION 2026-10-30: el argumento de que 0x8C0000000 apuntaba "fuera de un equipo de
+     * 16 GiB" era falso. Los 16 GiB del modulo estan en bancos y el espacio de direcciones SI
+     * llega a 35 GiB: el mapa medido en esta unidad da 13 GiB contiguos en 0x8C0000000-0xBFFFFFFFF
+     * y TTBR1_EL1 salio en 0x8c883d000. Lo que manda no es este nodo sino Args->PhysicalBase
+     * (DarwinBoot.c:599-601). Los valores de aqui se revisan en el change adt-dram-range.
+     */
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x0 0x80000000 0x3 0xE9A5D000>;   /* 0x3_E9A5D000 = 15.65 GiB */
+    };
+};
+
+/*
+ * Ocho CPUs con el camino SMP de Pagani (sheng-smp / sheng-smp-gic / armcpu-self-ipi), confirmado
+ * en el 13T con el mismo SM8750. El arranque de un solo CPU era una proteccion mientras ese camino
+ * no existia: sin el, machine_startup espera a los secundarios y no llega a bsd_init.
+ */
+/*
+ * SM8750 Oryon topology: cluster 0 (cpu0..cpu5, MPIDR 0x0..0x500) is the six-core
+ * performance cluster; cluster 1 (cpu6..cpu7, MPIDR 0x10000/0x10100) is the two-core
+ * prime cluster. Tag them for the ADT cluster-type, as /porting/platform requires:
+ * the scheduler's preferred (P) cluster is the fastest one, the six performance cores
+ * are E. Pending vendor-DT frequency confirmation.
+ */
+&cpu0 { status = "okay"; unixnu,cluster-type = "E"; };
+&cpu1 { status = "okay"; unixnu,cluster-type = "E"; };
+&cpu2 { status = "okay"; unixnu,cluster-type = "E"; };
+&cpu3 { status = "okay"; unixnu,cluster-type = "E"; };
+&cpu4 { status = "okay"; unixnu,cluster-type = "E"; };
+&cpu5 { status = "okay"; unixnu,cluster-type = "E"; };
+&cpu6 { status = "okay"; unixnu,cluster-type = "P"; };
+&cpu7 { status = "okay"; unixnu,cluster-type = "P"; };
+
+/* Logical board provider only: the common ADT's nonzero arm-io base cannot
+ * represent GENI at <16 MiB. Resource constants are qualified in OdinTouch.cpp;
+ * never fake a high physical address to satisfy that converter constraint.
+ * No interrupts here: GPIO162 is TLMM, NOT a GIC interrupt specifier.
+ */
+/ {
+    odin_touch: touch-input {
+        compatible = "ayn,odin3-ft3519";
+        unixnu,adt-name = "touch";
+        status = "okay";
+    };
+};
+
+/*
+ * UFS, UFS PHY, microSD host and panel are NOT exported to the ADT in this build.
+ * This kernel (BootProgress + PaganiArmCpu + PaganiArmDTPlatform) has no driver for them, and the
+ * first boot panicked in IODTGetICellCounts (docs/builds/odin3-adt-interrupts-20261028.md): the ADT
+ * nodes `ufs` and `sdhci` carry `interrupts` and `interrupt-parent`, and XNU resolves the parent
+ * through the property "AAPL,phandle" (iokit/Kernel/IODeviceTreeSupport.cpp:161,512), which the ADT
+ * converter does not emit (it writes "phandle"). The Pagani OnePlus 13T device tree never exports a
+ * node with `interrupts`; this one matches that shape. Re-enable each node together with its driver
+ * and with the converter emitting AAPL,phandle.
+ * Values below stay documented (vendor Odin 3 tree, see the header comment).
+ */
+/* UFS host: values from the vendor Odin 3 tree. */
+&ufs {
+    status = "disabled";
+    interrupts = <0 265 4>;                  /* GIC_SPI 265, IRQ_TYPE_LEVEL_HIGH */
+    interrupt-parent = <&gic>;
+    unixnu,adt-name = "ufs";
+};
+
+/* UFS PHY: the second window the UFS driver needs. */
+&{/soc} {
+    ufs_phy: phy@1d80000 {
+        compatible = "qcom,sm8750-qmp-ufs-phy";
+        reg = <0x0 0x1d80000 0x0 0x2000>;
+        status = "disabled";
+        unixnu,adt-name = "ufs-phy";
+    };
+};
+
+/*
+ * microSD host: Qualcomm SDHCI v5 (sdhc_2) — the root medium of this board, driven by OdinSd (drivers/OdinSd).
+ * Values from the vendor Odin 3 tree:
+ *   sm8750.dtsi  sdhc_2: mmc@8804000, reg 0x08804000+0x1000,
+ *                interrupts GIC SPI 207 ("hc_irq") and 223 ("pwr_irq"),
+ *                clocks GCC_SDCC2_AHB_CLK / GCC_SDCC2_APPS_CLK / RPMH_CXO_CLK;
+ *   cq8725s-ayn-common.dtsi uses it for the card slot with vmmc L9B 2.9 V, vqmmc L8B 1.8 V and no-mmc.
+ * The driver polls PRESENT_STATE and uses neither interrupt nor DMA, so `interrupts` is left out of the ADT:
+ * no interrupt specifier is mapped for this node (docs/builds/odin3-root-sd-20261028.md). Re-add
+ * `interrupt-parent = <&gic>; interrupts = <0 207 4>, <0 223 4>;` together with an interrupt-driven path; the
+ * converter now emits AAPL,phandle, which that mapping needs (adt-tree.py validates it).
+ */
+&{/soc} {
+    sdhc_2: mmc@8804000 {
+        compatible = "qcom,sm8750-sdhci", "qcom,sdhci-msm-v5";
+        reg = <0x0 0x08804000 0x0 0x1000>;
+        status = "okay";
+        unixnu,adt-name = "sdhci";
+    };
+};
+
+/*
+ * Panel ICNA3520. The ADT carries the node so NativeOdinPanel can match it; the registers and the
+ * sequence live in the driver (OdinPanelSequence.h), transcribed from mainline Linux and from the
+ * ROCKNIX device tree for this board:
+ *   chipone,icna3520, reset TLMM gpio98 (active low), vdd L11B 1.0 V, vddio L12B 1.8 V,
+ *   vci L13B 3.0 V, disp 2.8 V, backlight 5 V, DSI0 at 0x0ae94000, rotation 90.
+ */
+&{/soc} {
+    odin_panel: panel@ae94000 {
+        compatible = "chipone,icna3520";
+        reg = <0x0 0x0ae94000 0x0 0x1000>;
+        status = "disabled";
+        unixnu,adt-name = "panel";
+    };
+};

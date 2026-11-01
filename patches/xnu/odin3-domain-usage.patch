@@ -1,0 +1,49 @@
+# Read-only per-pset accounting; adapted from the preserved g1-input-clusters worktree.
+diff --git a/osfmk/kern/processor.c b/osfmk/kern/processor.c
+--- a/osfmk/kern/processor.c
++++ b/osfmk/kern/processor.c
+@@ -675,6 +675,44 @@
+ 	ticks[CPU_STATE_IDLE] += (uint32_t)(idle_time / hz_tick_interval);
+ }
+ 
++int
++odin_cpu_domain_usage(uint64_t usage_out[2][2], unsigned counts[2])
++{
++	usage_out[0][0] = usage_out[0][1] = usage_out[1][0] = usage_out[1][1] = 0;
++	counts[0] = counts[1] = 0;
++#if CONFIG_SCHED_EDGE
++	/* Processor objects have kernel lifetime. Snapshot the bounded list under
++	 * its lock; recount acquires its own coherent snapshot after releasing it. */
++	processor_t cpus[8];
++	unsigned n = 0;
++	simple_lock(&processor_list_lock, LCK_GRP_NULL);
++	for (processor_t p = processor_list; p != PROCESSOR_NULL && n < 8; p = p->processor_list) {
++		cpus[n++] = p;
++	}
++	simple_unlock(&processor_list_lock);
++	for (unsigned i = 0; i < n; ++i) {
++		processor_t p = cpus[i];
++		if (!p->processor_set) {
++			return 0;
++		}
++		unsigned type = p->processor_set->pset_type;
++		if (type != PSET_AMP_E && type != PSET_AMP_P) {
++			return 0;
++		}
++		unsigned domain = type == PSET_AMP_P;
++		struct recount_usage usage = { 0 };
++		uint64_t idle_time = 0;
++		recount_processor_usage(&p->pr_recount, &usage, &idle_time);
++		usage_out[domain][0] += usage.ru_metrics[RCT_LVL_USER].rm_time_mach + recount_usage_system_time_mach(&usage);
++		usage_out[domain][1] += idle_time;
++		counts[domain]++;
++	}
++	return n == 8 && counts[0] == 6 && counts[1] == 2;
++#else
++	return 0;
++#endif
++}
++
+ kern_return_t
+ processor_info(
+ 	processor_t     processor,

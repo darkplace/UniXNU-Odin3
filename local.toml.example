@@ -1,0 +1,14 @@
+# Optional local overrides. Leave local.toml absent for a pinned build: every source
+# revision this repository needs is already pinned by feeds.toml and unixnu.lock.
+#
+# Copy this file to local.toml (ignored by git) only when a source must come from a
+# local checkout instead of its pinned remote.
+#
+# [[source]]
+# name = "sm8750"
+# kind = "soc"
+# local = "/path/to/UniXNU-sm8750-common"
+#
+# [local]
+# drivers = "/path/to/drivers"
+# kits = "/path/to/kits"

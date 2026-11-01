@@ -1,0 +1,38 @@
+# Local configuration and private inputs
+local.toml
+unixnu.local.toml
+.env
+*.pem
+*.key
+
+# Generated trees and build products
+/out/
+/tree/
+/build/
+/.cache/
+/sysinfo/
+__pycache__/
+*.pyc
+
+# Images and firmware: never committed
+*.img
+*.macho
+*.efi
+*.dtb
+*.fd
+*.mbn
+*.elf
+*.o
+*.a
+*.log
+*.ipsw
+*.im4p
+*.dmg
+*.dbr
+*.dbrdisk
+
+# Local export and tooling
+public/
+.tools/
+tmp/
+backups/

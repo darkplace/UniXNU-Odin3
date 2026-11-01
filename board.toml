@@ -1,0 +1,129 @@
+# AYN Odin 3 (Dragonwing Q8, SM8750 / CQ8725S), 16 GiB — device repository on the
+# Pagani (OnePlus 13T, same SM8750) base.
+#
+# Pagani is a device-confirmed Stage 7 port of the same SoC and supplies the parts the
+# hand-built Odin board lacked: BootProgress (the documented on-screen stage history),
+# PaganiArmCpu / PaganiArmDTPlatform with their diagnostics, and the early boot progress
+# patches. The board-specific values (memory, identity, loader) stay the measured Odin ones.
+#
+# Loader: "driver" keeps the proven path — OpenABL v1.2 loads UniXNU.efi from the microSD
+# ESP and keeps the panel on at ExitBootServices. No firmware is built here.
+
+schema_version = 2
+
+[board]
+name = "odin3"
+soc = "SM8750"
+soc_source = "sm8750"
+os_profile = "ipados-17.7.11-21H461"
+kit = "odin3"
+description = "AYN Odin 3 (Dragonwing Q8, SM8750), 16 GiB"
+
+[ipsw]
+url = "https://updates.cdn-apple.com/2025SpringFCS/fullrestores/122-77166/DCA6CFE8-90E9-4B92-880D-3DE171798E40/iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw"
+product = "iPad7,1"
+version = "17.7.11"
+build = "21H461"
+device_class = "j120ap"
+chip_id = 0x8011
+board_id = 12
+fetch = ["AppleLogo", "KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustCache"]
+
+# GOP CPU presentation uses the pinned Pagani ABI-qualified display recipe.
+# Its embedded OnePlus peripherals are compile-only: odin-gop-only hard-blocks
+# their startup. No UFS driver, DSI reset, touch, GPU or brightness adoption.
+[components]
+include = ["BootProgress", "PaganiDarwinBoot", "PaganiArmCpu", "PaganiArmDTPlatform", "Sm8750Platform", "SoftwareAES", "ShengPlatformPower", "NativePrelink", "PaganiVerifiedRoot", "NativeVirtioBlock", "NativeRamBlock", "NativeMobileDisplay"]
+
+[kernel]
+defconfig = "odin3_defconfig"
+config_fragments = ["arch:configs/common.config", "soc:configs/sm8750.config", "os:configs/ipados.config"]
+patch_series = ["arch:patches/xnu/series", "soc:patches/xnu/series", "os:patches/xnu/pagani-series", "device:patches/xnu/series"]
+archives = [
+  "build-corecrypto-14.py",
+  "build-corecrypto-14.py --namespace",
+  "build-libpthread-kernel.py",
+  "component:PaganiArmCpu",
+  "component:PaganiArmDTPlatform",
+  "component:SoftwareAES",
+  "build-software-aes-bindings.py",
+  # Storage: OdinSd takes the NativeUfs slot (build/native-ufs); the NativeVirtioBlock root-binding helper and
+  # NativeRamBlock are the unchanged Pagani components (build-native-ufs.py --root-windows) and reuse its bindings.
+  "build-odin3-sd.py --kernelcache ../../../../ipsw/21H461/kernelcache.decompressed",
+  "component:NativeVirtioBlock",
+  "component:NativeRamBlock",
+  "component:ShengPlatformPower",
+  "stage-owner-policies.py",
+  "build-pagani-verified-root-probe.py --component os --include-systemos",
+  "prepare-odin3-display.py",
+  "component:NativeMobileDisplay",
+  "build-odin3-touch.py",
+  "build-odin3-fan.py",
+  "build-link-stubs.py",
+]
+
+[kernel.prelink]
+tool = "kits/NativePrelink/emit_prelink.py"
+kernel = "build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
+kernelcache_sha256 = "f18b4df865405f2a287b84977d7aca745e056d656d9fc9df1662970ce2969de7"
+slide = "-0x1000000"
+# The original AMFI initializer and the 17-component closure the Pagani root chain was qualified with.
+early_security_init = "com.apple.driver.AppleMobileFileIntegrity=0xfffffff005ab4ae0"
+roots = [
+  "com.apple.iokit.IOStorageFamily", "com.apple.filesystems.apfs",
+  "com.apple.driver.AppleMobileFileIntegrity", "com.apple.kext.CoreTrust",
+  "com.apple.security.sandbox", "com.apple.driver.ApplePMGR",
+  "com.apple.AppleFSCompression.AppleFSCompressionTypeZlib",
+  "com.apple.iokit.IOSurface", "com.apple.iokit.IOMobileGraphicsFamily",
+  "com.apple.iokit.IOHIDFamily", "com.apple.iokit.IOHIDEventDriver",
+]
+
+[device_tree]
+source = "device:dts/odin3.dts"
+include_dirs = ["soc:dts"]
+
+[payload]
+volume = "UNIXNU"
+size_mib = 192
+loader = "driver"
+title = "AYN Odin 3: Pagani base, early progress"
+dram_size = "0x3E9A5D000"
+timeout = 3
+# boot-progress=1 is the documented on-screen diagnostic page (stage history, last PC,
+# registers, pulse strip). debug=0x14e keeps the serial mask for when a UART exists.
+# G1 stays off. A separately authorized candidate may replace the SINGLE argument with odin-gpu-survey=1.
+kernel_args = ["-v", "debug=0x14e", "boot-progress=2", "boot-diag-resume=0", "cpus=8", "sheng-smp=1", "sheng-smp-gic=1", "armcpu-self-ipi=1", "offline-key-events=1", "sheng-aks=1", "sheng-pmgr=2", "kt_fixed_zones=240", "offline-apfs-load=1", "startup_debug=0", "-no_corpses", "odin-gop-only=1", "odin-gpu-survey=0", "sheng-vsync=60", "sheng-vsync-fixed=1", "offline-mobile-graphics-load=1", "offline-legacy-register=1", "offline-legacy-phase=4", "offline-legacy-gop=1", "offline-legacy-pm=1", "offline-legacy-validate=1", "offline-legacy-transfer=1", "offline-legacy-cpu-present=1", "sheng-fb-rotate=1"]
+trust_cache_sha256 = ["7416ca4f8377146626bb284e2133c76bee6cb4e3ee0af5d648b186235a7323a7"]
+
+[payload.adt]
+packed_data_ramdisk = true
+chip_id = "0x8011"
+ipad_identity = true
+owned_memory_size = "0x100000000"
+root_match_volume_uuid = "04769D26-2CA0-4825-B443-E2E5F88300F2"
+unique_chip_id = "required"
+
+# AMFI refuses to start without a PMGR provider ("AMFI: No PMGR?!", first Odin 3 boot with the
+# Pagani base). Pagani's proven hardware path: ShengPlatformPower publishes the original ApplePMGR nub
+# (sheng-pmgr=2) and /defaults carries sleep-disabled, exactly as the OnePlus 13T board does.
+# See docs/builds/odin3-amfi-pmgr-20261028.md for why vmm-present was not used.
+[adt.chosen.u32]
+display-scale = 2
+# The system sees a native landscape display (1920x1080): sheng-fb-rotate=1 makes NativeLegacyDisplay tell the family that size and turn the
+# frame 90 degrees to the left (counterclockwise) into the panel's portrait 1080x1920 GOP. display-rotation stays 0 as on the 13T: nothing in the
+# kernel reads it (the string is absent from the 21H461 kernelcache); the only reader found is libMobileGestalt (MGIOMFBSupport.c), whose
+# rotated-panel hint is not wanted once the system already sees the turned size (its effect was not measured). See docs/builds/odin3-swap-geometry-20261029.md.
+display-rotation = 0
+
+[adt.buttons.string]
+compatible = "buttons"
+device_type = "buttons"
+
+[adt.buttons.strings]
+button-names = ["hold", "voldown", "volup"]
+
+[adt.buttons.u32]
+home-button-type = 2
+
+[adt.defaults.u32]
+sleep-disabled = 1

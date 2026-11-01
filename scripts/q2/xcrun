@@ -1,0 +1,12 @@
+#!/bin/bash
+# xcrun shim for macOS hosts without Xcode.
+#
+# kits/VerifiedRoot/tests/check.py asks `xcrun --sdk iphoneos --show-sdk-path` and cross-compiles one
+# freestanding object (-ffreestanding, no system headers beyond our own include/). The Mac here has only
+# the Command Line Tools, so the iPhoneOS SDK is absent; answer with the macOS SDK, which is enough for a
+# headerless, freestanding compile. Every other call goes to the real xcrun unchanged. Nothing in UniXNU is
+# modified: this is a host tool wrapper, kept in ~/iDragon/tools and put first in PATH by q2/mac-osroot.sh.
+if [ "${1:-}" = "--sdk" ] && [ "${2:-}" = "iphoneos" ] && [ "${3:-}" = "--show-sdk-path" ]; then
+    exec /usr/bin/xcrun --sdk macosx --show-sdk-path
+fi
+exec /usr/bin/xcrun "$@"

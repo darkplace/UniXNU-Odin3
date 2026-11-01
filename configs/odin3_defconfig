@@ -1,0 +1,52 @@
+# Odin 3 on the Pagani (SM8750) base: owner-verified read-only root from the microSD, with the diagnostic page.
+#
+# The root chain is the one Pagani qualified on the same SoC and the QEMU qemu_root_defconfig proved to launchd:
+# NativeAES, verified-root policies, NativeVirtioBlock root-binding helper, owner root trust, SystemOS union,
+# scratch Data. The block provider in the NativeUfs slot is OdinSd (drivers/OdinSd), a microSD driver.
+# CPU GOP display backend; firmware owns panel timing. No UFS or touch driver startup.
+CONFIG_XNU_BUILD_ARCHIVES=y
+CONFIG_XNU_SOURCE_CORECRYPTO14=y
+CONFIG_XNU_SOURCE_PTHREAD=y
+CONFIG_XNU_ARM_DT_PLATFORM=y
+CONFIG_XNU_ARMCPU=y
+CONFIG_XNU_NATIVE_ARCH_TIMER=y
+# SM8750 copyio must temporarily clear PAN when accessing user pages.
+CONFIG_XNU_NATIVE_PAN=y
+# The BCM2837 panic buffer address is not mapped on this device.
+CONFIG_XNU_DT_PANIC_REGION=y
+CONFIG_XNU_CRYPTO_BOOTSTRAP="prelinked"
+# CONFIG_XNU_ARMVIRT_PLATFORM is not set
+# CONFIG_XNU_SOURCE_MOCKFS is not set
+
+# Storage provider slot (class NativeUfs = OdinSd) and the verified root chain.
+CONFIG_XNU_NATIVE_UFS=y
+CONFIG_XNU_NATIVE_AES=y
+CONFIG_XNU_VERIFIED_ROOT_PROBE=y
+CONFIG_XNU_NATIVE_VIRTIO_BLOCK=y
+CONFIG_XNU_OWNER_ROOT_AUDIT=y
+CONFIG_XNU_OWNER_ROOT_TRUST=y
+CONFIG_XNU_TRUST_CACHE_RUNTIME=y
+CONFIG_XNU_NATIVE_CS_HASH_CACHE=y
+# AMFI needs a PMGR provider: original ApplePMGR nub published by ShengPlatformPower (kernel arg sheng-pmgr=2).
+CONFIG_XNU_SHENG_PMGR=y
+CONFIG_XNU_OWNER_CACHE_MOUNT=y
+CONFIG_XNU_OWNER_CACHE_STARTUP=y
+CONFIG_XNU_OWNER_BOOT_MANIFEST=y
+CONFIG_XNU_NATIVE_RAM_BLOCK=y
+CONFIG_XNU_OWNER_DATA_MOUNT=y
+# Volume UUID of the scratch Data seed delivered as the payload ramdisk (seed.json volume_uuid).
+CONFIG_XNU_OWNER_DATA_VOLUME_UUID="5D8FE226-65AB-46F4-92F2-C801EE86F627"
+CONFIG_XNU_OWNER_UNION_SYSTEMOS=y
+CONFIG_XNU_VERIFIED_ROOT_ARCHIVE="{tree}/build/verified-root-os-xnu-bundle/libVerifiedRootProbe.a"
+# CONFIG_XNU_NATIVE_ADRENO is not set
+CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y
+
+# The documented on-screen stage history, drawn into the XNU framebuffer mapping.
+CONFIG_XNU_BOOT_PROGRESS=y
+CONFIG_XNU_EARLY_BOOT_PROGRESS=y
+
+CONFIG_XNU_NATIVE_UFS_ARCHIVE="{tree}/build/native-ufs/libNativeUfs.a"
+CONFIG_XNU_NATIVE_VIRTIO_BLOCK_ARCHIVE="{tree}/build/native-virtio-block/libNativeVirtioBlock.a"
+CONFIG_XNU_NATIVE_RAM_BLOCK_ARCHIVE="{tree}/build/native-ram-block/libNativeRamBlock.a"
+# BootProgress reads its owner-cache stage through a weak extern; scripts/build-link-stubs.py defines what is left undefined.
+CONFIG_XNU_EXTRA_LD_ARCHIVES="{tree}/build/odin3-link-stubs/libOdin3LinkStubs.a"

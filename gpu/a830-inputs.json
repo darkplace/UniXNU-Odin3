@@ -1,0 +1,148 @@
+{
+ "_comment": "Pins for the Adreno 830 (SM8750, Gen8 generation 1) bring-up. Blobs are not committed: they live under firmware/ (untracked) and are checked by SHA-256. Provenance recorded with each pin.",
+ "firmware": {
+  "source": "https://gitlab.com/kernel-firmware/linux-firmware (branch main, fetched 2026-10-29); WHENCE sha256 a3453858252ab19d0655ce0a1d4144f583b13d0be56ae0ab9a7a2e7751c32bcd",
+  "files": {
+   "qcom/gen80000_gmu.bin": {
+    "bytes": 88896,
+    "sha256": "1ad8175e6cd01ea76c64d20b83600038c52dd29844b48d57b11b769b038863a5",
+    "whence_version": "v0.14"
+   },
+   "qcom/gen80000_sqe.fw": {
+    "bytes": 111476,
+    "sha256": "30ee3301534f95799d4afaf73864f3c369baa5a5dea8481e7f0cb8cc941f396c",
+    "whence_version": "v5.01.19"
+   },
+   "qcom/gen80000_aqe.fw": {
+    "bytes": 25044,
+    "sha256": "67562ad5baae3a133c92a6e48a9d1b1a9a867fe2f85b49324e244e963f3b89c5",
+    "whence_version": "v0.13"
+   },
+   "qcom/sm8750/gen80000_zap.mbn": {
+    "bytes": 12088,
+    "sha256": "0e3ae03f7dd3170621e7b231802639535410bbc2a1c3ba0829c15ab4cf3996cf",
+    "whence_version": "v0.77"
+   }
+  }
+ },
+ "odin_dt": {
+  "source": "vendor_boot of lineage-24.0-20261024-nightly-odin3-signed.zip, extracted with scripts/d3/extract-ota-partition.py",
+  "vendor_boot_sha256": "b39f792c5c38ca622a06f449c850faf9a9db9c897f2cb0ba8b836bdc09e2e0b7",
+  "dtbo_sha256": "be2bcb0eadd790292a6cb2a51a2f070d195e55c658c18ed88c4535ab73de47e0"
+ },
+ "linux": {
+  "repository": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git",
+  "commit": "c339f4010dea8b0d754f84ace70cd1b089878ef8",
+  "committer_date": "2026-10-28T17:36:32Z (master head when fetched, 2026-10-29)",
+  "fetched_from": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/<path>?id=<commit>",
+  "license": "a8xx_catalog.c, a6xx_gmu.c, a8xx_gpu.c, a6xx_hfi.c: GPL-2.0-only (read as technical reference, values only); register XML: MIT",
+  "files": {
+   "drivers/clk/qcom/gcc-sm8750.c": {"bytes": 89350, "sha256": "3ac38ce713871b541dd7d4bee7007b14fee36d3a2fc6faa951e7c82fd53da960"},
+   "drivers/clk/qcom/gpucc-sm8750.c": {"bytes": 12082, "sha256": "f0dacb9a457d4e611a65262e313eab62b696863ea6ef8c6a3c1c654c04125557"},
+   "drivers/clk/qcom/gdsc.c": {"bytes": 17994, "sha256": "04c66019948835d4b0def6f96d940500a85eb3e9c277f69de06c953f7d6475d2"},
+   "drivers/clk/qcom/gdsc.h": {"bytes": 3055, "sha256": "bea8e934482c13e1318ebe59bfd881cb91536e32afd9dae2676da9514d140ae9"},
+   "drivers/firmware/qcom/qcom_scm.h": {"bytes": 5634, "sha256": "0998dd9c72d2241ecbe3bbb811d703c115b653d95ba2424d97f2a0ab7adb02b2"},
+   "drivers/firmware/qcom/qcom_scm.c": {"bytes": 77406, "sha256": "911dad17557a1f09cc5d2dba309df66a720087a12c285f68e93d352642705afd"},
+   "drivers/firmware/qcom/qcom_scm-smc.c": {"bytes": 5704, "sha256": "399d29d832d265c972a8c927669be7047800bce1d46b0452fe17a8b875bf1f2c"},
+    "drivers/gpu/drm/msm/adreno/a6xx_gmu.c": {
+    "bytes": 70934,
+    "sha256": "22bc34dafafff83827901221873c6aa770e20f9c17c60294593245324eee8272"
+   },
+   "drivers/gpu/drm/msm/adreno/a6xx_gmu.h": {
+    "bytes": 6526,
+    "sha256": "b9af7b6c0bdf0f4f3fabf70f59ba821bc783109b48cf7a8c04e6b7d07fef1b92"
+   },
+   "drivers/gpu/drm/msm/adreno/a6xx_gpu.h": {
+    "bytes": 11390,
+    "sha256": "3d11d36a6ec3f16876baaf6f8b76fcfcaa8e0b2991892e886fbe850682f87c70"
+   },
+   "drivers/gpu/drm/msm/adreno/a6xx_hfi.c": {
+    "bytes": 31893,
+    "sha256": "e91ef0257331983c7ea1f5531efdfa8a27f2a7b4033a9ded1adad1cfd4026173"
+   },
+   "drivers/gpu/drm/msm/adreno/a6xx_hfi.h": {
+    "bytes": 7298,
+    "sha256": "1e53d022fccaec3d658a4e939d0572c5711597fc8db5c4dec97ca08ee365c7e2"
+   },
+   "drivers/gpu/drm/msm/adreno/a8xx_catalog.c": {
+    "bytes": 72458,
+    "sha256": "a53ef7a20e0c0c9e765a78b9510efa2039671607b5dde7bbfc82f4521aa74afb"
+   },
+   "drivers/gpu/drm/msm/adreno/a8xx_gpu.c": {
+    "bytes": 42360,
+    "sha256": "939e265b9cfb7bbf6afb821947d79c901c324ffb949f55ac5f2f2204aee09ff4"
+   },
+   "drivers/gpu/drm/msm/adreno/adreno_gpu.h": {
+    "bytes": 20885,
+    "sha256": "c8fe321c6df3a4b2fc2f3f186cf6b3952fd0196f7e5c32b5d7b2740405dd3be6"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/a6xx.xml": {
+    "bytes": 281374,
+    "sha256": "6e20d0347b06f26220f6b87d8600e94790331fec45363a167c5e63ea6ad8f9c2"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/a6xx_descriptors.xml": {
+    "bytes": 8874,
+    "sha256": "6eb6ecd53653a3beb1d09c5855e5550bedc318b410eac870b5a99d8a3c61ce7d"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/a6xx_enums.xml": {
+    "bytes": 17237,
+    "sha256": "08d56c3ee45ebaa151a8adc7adf7c372ecf89ca72fabc09da1d64645c31f06d4"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/a6xx_gmu.xml": {
+    "bytes": 14906,
+    "sha256": "f13f07aa3c975c1d671c1a7f5ba62ddaaf525aedb7a0e481186cbfffe461f88b"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/a7xx_enums.xml": {
+    "bytes": 10053,
+    "sha256": "8649a48eb99b71d3d882ed32021c0afb3400eb6623dc0a10afc2389bef40c497"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/a8xx_descriptors.xml": {
+    "bytes": 8703,
+    "sha256": "9cd1aef6e79b34e70ab302357b1bf38cebe37fb375aad15b8a06520399eabf51"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/a8xx_enums.xml": {
+    "bytes": 15388,
+    "sha256": "18d5d8f4871125be7a0fc6d99c33269779532180ced872f33e508be02fc6ceeb"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/adreno_common.xml": {
+    "bytes": 17188,
+    "sha256": "f898e4eee3de5f92d25597f003e5550a24fe50552d25555d6916dcd1b922d6f6"
+   },
+   "drivers/gpu/drm/msm/registers/adreno/adreno_pm4.xml": {
+    "bytes": 95213,
+    "sha256": "155df8614c56bd49464e7d33daf764f8c97ecf9942d6242c7fbcb3eaccd1acb5"
+   }
+  }
+ },
+ "odin_vendor_firmware": {
+  "source": "OTA lineage-24.0-20261024-nightly-odin3-signed.zip, partition `vendor` (ext4, read with debugfs, no mount); dumped by devices/odin3-pagani/scripts/gpu/compare-zap.py to firmware/ota/vendor-fw/",
+  "vendor_img_bytes": 636190720,
+  "vendor_img_sha256": "10fde89c3de3d325f287984c19906c5a66e5d1d3b789e736db0ccf217c857315",
+  "files": {
+   "gen80000_gmu.bin": {
+    "path": "/vendor/firmware/gen80000_gmu.bin",
+    "bytes": 88896,
+    "sha256": "1ad8175e6cd01ea76c64d20b83600038c52dd29844b48d57b11b769b038863a5",
+    "identical_to_linux_firmware": true
+   },
+   "gen80000_sqe.fw": {
+    "path": "/vendor/firmware/gen80000_sqe.fw",
+    "bytes": 111476,
+    "sha256": "30ee3301534f95799d4afaf73864f3c369baa5a5dea8481e7f0cb8cc941f396c",
+    "identical_to_linux_firmware": true
+   },
+   "gen80000_aqe.fw": {
+    "path": "/vendor/firmware/gen80000_aqe.fw",
+    "bytes": 25044,
+    "sha256": "67562ad5baae3a133c92a6e48a9d1b1a9a867fe2f85b49324e244e963f3b89c5",
+    "identical_to_linux_firmware": true
+   },
+   "gen80000_zap.mbn": {
+    "path": "/vendor/firmware/gen80000_zap.mbn",
+    "bytes": 12088,
+    "sha256": "8b885fe8ac24216a16f92da8984670bcca45bbf4178c263f2e5975cabdb994a1",
+    "identical_to_linux_firmware": false
+   }
+  }
+ }
+}

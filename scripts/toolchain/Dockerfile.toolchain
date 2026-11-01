@@ -1,0 +1,17 @@
+# Toolchain Linux de UniXNU en un contenedor dedicado.
+# - No instala nada en el host: clang parcheado, cctools, mig, iig y lzfse viven en la imagen.
+# - The UniXNU tree is mounted at /work when the kernel build runs.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# El script instala el resto de dependencias con apt; solo necesita python3 para arrancar.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY linux /opt/unixnu/scripts/linux
+RUN /opt/unixnu/scripts/linux/setup-toolchain.py /opt/unixnu-linux -j 6
+
+ENV UNIXNU_TOOLCHAIN=/opt/unixnu-linux
+WORKDIR /work
