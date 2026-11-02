@@ -1,4 +1,4 @@
-# UniXNU-Odin3
+# UniXNU-Odin3 (WIP)
 
 AYN Odin 3 device support for [UniXNU](https://unixnu.com/): an iPadOS 17.7.11 (21H461) userland
 running on a Snapdragon 8 Elite handheld, booted from a microSD card.
